@@ -5,6 +5,7 @@ theme_set(theme_pbs())
 
 # Set French language option
 FRENCH <- TRUE
+FRENCH <- FALSE
 
 # Translation helper function
 tr <- function(english, french) {
@@ -30,20 +31,20 @@ if (FRENCH) {
 }
 
 
-d <- readRDS("data/raw/survey-samples.rds")
+d <- readRDS("data/raw/dogfish-inside-samples_2026.rds")
 d <- mutate(d, species_common_name = "north pacific spiny dogfish") # some missing!?, there are NAs at the bottom of the dataset for ALL columns
-dc <- readRDS("data/raw/commercial-samples.rds")
+dc <- readRDS("data/raw/dogfish-inside-commercial-samples.rds")
 
-# Number of trips (sets?) of outside surveys ----
+# Number of trips (sets?) of inside surveys ----
 d_sumry <- d %>%
-  filter(major_stat_area_name != "4B: STRAIT OF GEORGIA",
+  filter(major_stat_area_name == "4B: STRAIT OF GEORGIA",
          !is.na(length)) %>%
   summarise(n_fe = length(unique(fishing_event_id)), n_samp = sum(length > 0), .by = c(year, survey_abbrev))
 
 
 # Number of trips with bio sampling (opportunistic) of outside commercial fishing by year and month ----
 dc_sumry <- dc %>%
-  filter(major_stat_area_name != "4B: STRAIT OF GEORGIA",
+  filter(major_stat_area_name == "4B: STRAIT OF GEORGIA",
          !sampling_desc == "UNKNOWN",
          gear_desc %in% c("BOTTOM TRAWL", "LONGLINE", "MIDWATER TRAWL"),
          !is.na(length)) %>%
@@ -79,10 +80,10 @@ g <- ggplot(dc_sumry, aes(month, year)) +
 #   ggtitle("Outside stock commercial samples (1991-2023)")
 
 
-# dc <- readRDS(here::here("data/raw/commercial-samples.rds"))
+# dc <- readRDS(here::here("data/raw/dogfish-inside-commercial-samples.rds"))
 dc_sumry <- dc %>%
   filter(
-    major_stat_area_name != "4B: STRAIT OF GEORGIA",
+    major_stat_area_name == "4B: STRAIT OF GEORGIA",
     !sampling_desc == "UNKNOWN",
     #gear_desc %in% c("BOTTOM TRAWL", "LONGLINE", "MIDWATER TRAWL"),
     !is.na(length)) %>%
@@ -148,15 +149,17 @@ ggsave(fig_path("commercial-sample-counts.png"), width = 13, height = 12, dpi = 
 # Survey length composition --------------------------------------------------
 
 table(d$survey_abbrev)
+unique(d$age_specimen_collected) #no ages in database, only if ages were collected
+d$age <- 0
 
 lengths_syn <- tidy_lengths_raw(d,
-  survey = c("SYN WCHG", "SYN HS", "SYN QCS", "SYN WCVI")
+  survey = c("SYN SOG")
 )
 g <- plot_lengths(lengths_syn, show_year = "all", french = FRENCH)
-ggsave(fig_path("lengths-synoptic-outside.png"), width = 6, height = 8)
+ggsave(fig_path("lengths-synoptic-inside.png"), width = 6, height = 8)
 
 lengths_dog <- tidy_lengths_raw(d,
-  survey = c("DOG")
+  survey = c("DOG-C", "DOG-J", "HBLL INS N", "HBLL INS S", "OTHER")#, "SYN SOG")
 )
 g <- plot_lengths(lengths_dog, show_year = "all", french = FRENCH)
 ggsave(fig_path("lengths-dogfish-survey-inside.png"), g, width = 4, height = 6)
@@ -171,11 +174,11 @@ table(dc$length_type)
 table(dc$sampling_desc)
 table(dc$gear_desc)
 
-d2024 <- readRDS("data/raw/syn-wcvi-dogfish-samples-2024.rds")
-gfplot::tidy_lengths_raw(d2024, survey = "SYN WCVI") |>
-  right_join(data.frame(survey_abbrev = "SYN WCVI", year = seq(2004, 2024))) |>
-  gfplot::plot_lengths(french = FRENCH) + ggtitle("")
-ggsave(fig_path("lengths-syn-2024.png"), width = 3, height = 8)
+# d2024 <- readRDS("data/raw/syn-wcvi-dogfish-samples-2024.rds")
+# gfplot::tidy_lengths_raw(d2024, survey = "SYN WCVI") |>
+#   right_join(data.frame(survey_abbrev = "SYN WCVI", year = seq(2004, 2024))) |>
+#   gfplot::plot_lengths(french = FRENCH) + ggtitle("")
+# ggsave(fig_path("lengths-syn-2024.png"), width = 3, height = 8)
 
 
 # Outside commercial length ----
