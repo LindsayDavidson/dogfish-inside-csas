@@ -6,6 +6,10 @@ source("analysis/utils.R")
 source("ss3/99-utils.R")
 library(here)
 
+#what year is the commercial data complete? I am guessing 2025 so I used that as the year cutoff
+year_cutoff <- 2025
+
+
 # Set French language option
 #FRENCH <- TRUE
 FRENCH <- FALSE
@@ -377,7 +381,7 @@ ggsave(fig_path("reconstructed-catch-discards-inside.png"), g, width = 5, height
 
 #not sure the zoomed is needed
 # g1 <- d %>%
-#   filter(year <= 2026) |>
+#   filter(year <= year_cutoff) |>
 #   filter(year >= 1980) |>
 #   filter(area == "4B") %>%
 #   select(-discarded_pcs) |>
@@ -408,7 +412,7 @@ ggsave(fig_path("reconstructed-catch-discards-inside.png"), g, width = 5, height
 # ggsave_optipng(fig_path("reconstructed-catch-discards-inside-sar.png"), width = 8, height = 5)
 
 d %>%
-  filter(year <= 2026) |>
+  filter(year <= year_cutoff) |>
   filter(year >= 1978) |>
   filter(area == "4B") %>%
   select(-discarded_pcs) |>
@@ -441,7 +445,7 @@ ggsave_optipng(fig_path("reconstructed-catch-discards-inside-zoom-high-risk-band
 # table to share:
 out <- d |>
   ungroup() |>
-  filter(year <= 2026) |>
+  filter(year <= year_cutoff) |>
   filter(area == "4B") |>
   mutate(gear = ifelse(gear == "Unknown/trawl", "Bottom trawl", gear)) |>
   select(-area) |>
