@@ -7,7 +7,8 @@ source("ss3/99-utils.R")
 library(here)
 
 # Set French language option
-FRENCH <- TRUE
+#FRENCH <- TRUE
+FRENCH <- FALSE
 
 # Set decimal option for French
 if (FRENCH) options(OutDec = ",")
@@ -33,35 +34,33 @@ fig_path <- function(filename) {
 
 # modern catches ------------------------------------------------------
 
-if (Sys.info()[["user"]] == "seananderson") {
-  d <- readRDS("data/raw/catch-2024-12-09.rds")
-  # d_4b5abcde3cd <- tidy_catch_dogfish(d, areas = c("5[CDE]+", "5[AB]+", "4B"))
+if (Sys.info()[["user"]] == "DAVIDSONLI") {
+  d <- readRDS("data/raw/dogfish-inside-catch-2026-11-06.rds") |> filter(major_stat_area_name == "4B: STRAIT OF GEORGIA")
 
   # remove stat area 12 such that we have PFMA/GMU 3CD5ABCD rather than PSMFC
   # (Science older GMU) 3CD5ABCD
-  d <- filter(d, dfo_stat_area_code != 12)
-  d_4b5abcde3cd <- tidy_catch_dogfish(d, areas = c("5[ABCDE]+", "3[CD]+", "4B"))
-  d_4b5abcde3cd$area[d_4b5abcde3cd$area == "3CD"] <- "5ABCDE3CD"
-  d_4b5abcde3cd$area[d_4b5abcde3cd$area == "5ABCDE"] <- "5ABCDE3CD"
-  d_4b5abcde3cd <- group_by(d_4b5abcde3cd, year, species_common_name, area, gear) |>
+  #d <- filter(d, dfo_stat_area_code != 12) #<- !!this was removed for the outside code however, kept here as area 12 is part of the inside now?
+  d_4b <- tidy_catch_dogfish(d, areas = c("4B"))
+  d_4b <- group_by(d_4b, year, species_common_name, area, gear) |>
     summarise(
       landed_kg = sum(landed_kg),
       discarded_kg = sum(discarded_kg),
       discarded_pcs = sum(discarded_pcs)
     )
-  saveRDS(d_4b5abcde3cd, file = "data/generated/catch-4B5ABCDE3CD-summarized.rds")
+  saveRDS(d_4b, file = "data/generated/catch-4B-summarized.rds")
 }
 
-# outside: 5AB + 5CDE
+#ggplot(d, aes(lon, lat)) + geom_point() #note some lat and lons are off however maybe that doesn't matter for this
+
 # inside: 4B
 
 # cached and force-pushed to GitHub:
-d_4b5abcde3cd <- readRDS("data/generated/catch-4B5ABCDE3CD-summarized.rds")
-# plot_catch(d_4b5abcde3cd)
+d_4b <- readRDS("data/generated/catch-4B-summarized.rds")
+# plot_catch(d_4b)
 
 
-# filter(d_4b5abcde3cd, year >= 2010, year <= 2023) |>
-#   filter(area != "4B") |>
+# filter(d_4b, year >= 2010, year <= 2023) |>
+#   filter(area == "4B") |>
 #   mutate(
 #     discarded_kg =
 #       ifelse(
@@ -80,7 +79,7 @@ d_4b5abcde3cd <- readRDS("data/generated/catch-4B5ABCDE3CD-summarized.rds")
 #   readr::write_csv("~/Downloads/catch-oct18.csv")
 #   # knitr::kable(digits = 0)
 
-dd <- filter(d_4b5abcde3cd, gear == "Hook and line", area != "4B") |>
+dd <- filter(d_4b, gear == "Hook and line", area == "4B") |>
   ungroup() |>
   select(year, discarded_pcs) |>
   mutate(discarded_pcs = discarded_pcs, weight_t = round(3.07 * discarded_pcs / 1000, 3)) |>
@@ -94,7 +93,7 @@ cowplot::plot_grid(g1, g2, nrow = 2)
 
 ggplot(dd, aes(year, discarded_pcs/1000)) + geom_line()
 
-d_4b5abcde3cd <- d_4b5abcde3cd |>
+d_4b <- d_4b |>
   mutate(
     discarded_kg =
       ifelse(
@@ -113,41 +112,75 @@ d_4b5abcde3cd <- d_4b5abcde3cd |>
 # Trust trawl >= 1996
 # Trust longline >= 2006
 # Take rest from last assessment
-d_4b5abcde3cd_trawl <- d_4b5abcde3cd |>
+d_4b_trawl <- d_4b |>
   filter(year >= 1996 & gear %in% c("Bottom trawl", "Midwater trawl", "Unknown/trawl"))
 
-# add on the outside midwater trawl from Maria for before 2006
-gdu <- read_xlsx(here("data/raw/FD5046 dogfish trawl catch 1996-2024.xlsx"), sheet = 1L)
-names(gdu) <- tolower(names(gdu))
-gdu_sum <- group_by(gdu, gear_subtype, calendar_year) |>
-  summarise(landed_kg = sum(landed_round_kg), discarded_kg = sum(total_released_round_kg)) |>
-  filter(gear_subtype == "MIDWATER TRAWL", calendar_year < 2006) |>
-  select(discarded_kg, year = calendar_year)
+#Do we have this data for the inside waters? Retained this code from the outside dogfish assess
+# # add on the inside midwater trawl from Maria for before 2006
+# gdu <- read_xlsx(here("data/raw/FD5046 dogfish trawl catch 1996-2024.xlsx"), sheet = 1L)
+# names(gdu) <- tolower(names(gdu))
+# gdu_sum <- group_by(gdu, gear_subtype, calendar_year) |>
+#   summarise(landed_kg = sum(landed_round_kg), discarded_kg = sum(total_released_round_kg)) |>
+#   filter(gear_subtype == "MIDWATER TRAWL", calendar_year < 2006) |>
+#   select(discarded_kg, year = calendar_year)
 
 # check:
-d_4b5abcde3cd_trawl[d_4b5abcde3cd_trawl$gear %in% "Midwater trawl" & d_4b5abcde3cd_trawl$year %in% 1996:2005 & d_4b5abcde3cd_trawl$area != "4B",]
+d_4b_trawl[d_4b_trawl$gear %in% "Midwater trawl" & d_4b_trawl$year %in% 1996:2005 & d_4b_trawl$area != "4B",]
 
-d_4b5abcde3cd_trawl$discarded_kg[d_4b5abcde3cd_trawl$gear %in% "Midwater trawl" & d_4b5abcde3cd_trawl$year %in% 1996:2005 & d_4b5abcde3cd_trawl$area != "4B"] <- gdu_sum$discarded_kg
+#d_4b_trawl$discarded_kg[d_4b_trawl$gear %in% "Midwater trawl" & d_4b_trawl$year %in% 1996:2005 & d_4b_trawl$area != "4B"] <- gdu_sum$discarded_kg
 
-# check:
-d_4b5abcde3cd_trawl[d_4b5abcde3cd_trawl$gear %in% "Midwater trawl" & d_4b5abcde3cd_trawl$year %in% 1996:2005 & d_4b5abcde3cd_trawl$area != "4B",]
+## check:
+#d_4b_trawl[d_4b_trawl$gear %in% "Midwater trawl" & d_4b_trawl$year %in% 1996:2005 & d_4b_trawl$area != "4B",]
 
 # take 2005 and before from last assessment:
-d_4b5abcde3cd_ll <- d_4b5abcde3cd |>
+d_4b_ll <- d_4b |>
   filter(year >= 2006 & gear %in% c("Hook and line", "Trap"))
 
-d_catch_modern <- bind_rows(d_4b5abcde3cd_trawl, d_4b5abcde3cd_ll)
+d_catch_modern <- bind_rows(d_4b_trawl, d_4b_ll)
 
-# plot_catch(d_4b5abcde3cd_ll)
-# plot_catch(d_4b5abcde3cd_trawl)
+# plot_catch(d_4b_ll)
+# plot_catch(d_4b_trawl)
 
 # historical catches --------------------------------------------------
 
-landings_1935 <- readr::read_csv("data/raw/catches-all-gears-1935-1965.csv", comment = "#")
-landings_1966_ll <- readr::read_csv("data/raw/catches-longline-1966-2008.csv", comment = "#")
-landings_1966_trawl <- readr::read_csv("data/raw/catches-trawl-1966-2008.csv", comment = "#")
-discards_1966_trawl <- readr::read_csv("data/raw/discards-trawl-1966-2008.csv", comment = "#")
-discards_2001_ll <- readr::read_csv("data/raw/discards-longline-2001-2006.csv", comment = "#")
+# landings_1935 <- readr::read_csv("data/raw/catches-all-gears-1935-1965.csv", comment = "#")
+# landings_1966_ll <- readr::read_csv("data/raw/catches-longline-1966-2008.csv", comment = "#")
+# landings_1966_trawl <- readr::read_csv("data/raw/catches-trawl-1966-2008.csv", comment = "#")
+# discards_1966_trawl <- readr::read_csv("data/raw/discards-trawl-1966-2008.csv", comment = "#")
+# discards_2001_ll <- readr::read_csv("data/raw/discards-longline-2001-2006.csv", comment = "#")
+
+landings_1966_trawl <- readr::read_csv("data/raw/catches-trawl-1966-2008.csv", skip = 2, show_col_types = FALSE) #comment = "#")?
+# Gallucci et al. (2011) ResDoc 2011/034 Table 4
+landings_1966_ll <- readr::read_csv("data/raw/catches-longline-1966-2008.csv", skip = 2, show_col_types = FALSE)
+# Gallucci et al. (2011) ResDoc 2011/034 Table 3
+landings_1935 <- readr::read_csv("data/raw/catches-all-gears-1935-1965.csv", skip = 2, show_col_types = FALSE)
+# Gallucci et al. (2011) ResDoc 2011/034 Table 2
+discards_1966_trawl <- readr::read_csv("data/raw/discards-trawl-1966-2008.csv", skip = 2, show_col_types = FALSE)
+# Gallucci et al. (2011) ResDoc 2011/034 Table 6
+discards_2001_ll <- readr::read_csv("data/raw/discards-longline-2001-2006.csv", skip = 2, show_col_types = FALSE)
+# Gallucci et al. (2011) ResDoc 2011/034 Table 5
+landings_1876 <- readRDS("data/raw/catch-commercial-landings-all-gears-1876-1939.rds")
+# # Ketchen (1986) Tables 3 and 4, All gears 1876-1934 annual landings (tonnes) SOG catches only
+
+# # commercial landings all gear 1876-1939 ----------------------------------
+# library(googlesheets4)
+# g1 <- c("1_W67uz3s4W1zDE8nCbugVJjCDBvesHSOrsMmuU2V7oM")
+# g2 <- c("1bvItr120v3O2NFkFelJr5MpUgRbHNoA8823ttSkO_m4")
+# # All gears 1876-1934 annual landings (tonnes)
+# # Ketchen (1986) Tables 3 and 4
+# gs4_deauth()
+# d1 <- read_sheet(g1, skip = 1)
+# d2 <- read_sheet(g2, skip = 1)
+# # Assemble
+# d <- dplyr::bind_rows(d1, d2)
+# saveRDS(d, "data/raw/catch-commercial-landings-all-gears-1876-1939.rds")
+
+saveRDS(landings_1966_trawl, "data/raw/catch-commercial-landings-trawl-1966-2008.rds")
+saveRDS(landings_1966_ll, "data/raw/catch-commercial-landings-longline-1966-2008.rds")
+saveRDS(landings_1935, "data/raw/catch-commercial-landings-all-gears-1935-1965.rds")
+saveRDS(discards_1966_trawl, "data/raw/catch-commercial-discards-trawl-1966-2008.rds")
+saveRDS(discards_2001_ll, "data/raw/catch-commercial-discards-longline-2001-2006.rds")
+saveRDS(landings_1876, "data/raw/catch-commercial-landings-all-gears-1876-1934.rds")
 
 # 2006 ll coming from our databases now:
 discards_2001_ll <- filter(discards_2001_ll, Year <= 2005)
@@ -164,6 +197,7 @@ landings_1966_ll <- make_NAs_zero(landings_1966_ll)
 landings_1966_trawl <- make_NAs_zero(landings_1966_trawl)
 discards_1966_trawl <- make_NAs_zero(discards_1966_trawl)
 discards_2001_ll <- make_NAs_zero(discards_2001_ll)
+landings_1876 <- make_NAs_zero(landings_1876)
 
 # Percent not assigned !?
 d_1935 <- landings_1935 |>
@@ -202,6 +236,20 @@ disc_2001_ll <- tidyr::pivot_longer(
   disc_2001_ll, -1, names_to = "area", values_to = "discarded_kg") |>
   mutate(gear = "Hook and line", discarded_kg = discarded_kg * 1000)
 
+# Take average value for each year
+d_1876 <- landings_1876 |>
+  mutate(area = "4B") |>
+  mutate(average = (Min + Max)/2) |>
+  rename("4B" = average, year = Year) |>
+  dplyr::select(year, "4B")
+
+d_1876 <- tidyr::pivot_longer(
+  d_1876, -1, names_to = "area", values_to = "landed_tonnes") |>
+  mutate(gear = "Trawl + hook and line", landed_kg = landed_tonnes * 1000) |>
+  dplyr::select(-landed_tonnes)
+
+#why aren't we using the old ll discards?
+#kept this from the outside dogfish assess
 # don't use old ll discard weights... agreed to use counts from 2006 onwards
 # in model...
 # disc <- bind_rows(disc_1966_tr, disc_2001_ll)
@@ -214,7 +262,8 @@ ggplot(disc, aes(x = year, y = discarded_kg, colour = gear, fill = gear)) +
 old_landings <- bind_rows(list(
   d_1935,
   d_1966_ll,
-  d_1966_tr
+  d_1966_tr,
+  d_1876
 ))
 
 ggplot(old_landings, aes(x = year, y = landed_kg, colour = gear, fill = gear)) +
@@ -226,17 +275,18 @@ old_dat <- make_NAs_zero(old_dat)
 
 d <- bind_rows(d_catch_modern, old_dat)
 
-# trash 4B herein
-# only focussing on outside stock
-d <- filter(d, area != "4B")
+# only focusing on 4b stock!
+d <- filter(d, area == "4B")
 d <- arrange(d, gear, year)
 d$species_common_name <- NULL
-d <- filter(d, year <= 2023)
+#d <- filter(d, year <= 2023) #this is from the outside assessment so I ignored it here
 
-english_gear <- c("Bottom trawl", "Hook and line", "Midwater trawl", "Trap", 
+unique(d$gear)
+
+english_gear <- c("Bottom trawl", "Hook and line", "Midwater trawl", "Trap",
   "Trawl", "Trawl + hook and line", "Unknown/trawl")
 
-french_gear <- c("Chalut de fond", "Palangre", "Chalut pélagique", "Casier", 
+french_gear <- c("Chalut de fond", "Palangre", "Chalut pélagique", "Casier",
   "Chalut", "Chalut + palangre", "Inconnu/chalut")
 
 if (FRENCH) {
@@ -247,7 +297,7 @@ if (FRENCH) {
   d$gear <- factor(d$gear, levels = gear_mapping[levels(d$gear)])
 }
 
-catch_plot <- function(x, column) {  
+catch_plot <- function(x, column) {
   gears <- sort(unique(x$gear))
   cols <- RColorBrewer::brewer.pal(n = length(gears), name = "Dark2")
   names(cols) <- gears
@@ -299,10 +349,10 @@ ggsave(fig_path("reconstructed-catch.png"), g, width = 6.4, height = 5.5)
 
 saveRDS(d, file = "data/generated/catch.rds")
 
-## Outside only ----
+## inside only ----
 g <- d |>
   filter(year <= 2023) |>
-  filter(area != "4B") |>
+  filter(area == "4B") |>
   select(-discarded_pcs) |>
   reshape2::melt(id.vars = c("year", "gear", "area")) |>
   mutate(variable = ifelse(variable == "landed_kg", tr("Landings (kt)", "Débarquements (kt)"), tr("Discards (kt)", "Rejets (kt)")),
@@ -313,7 +363,8 @@ g <- d |>
   geom_col(colour = "grey50", linewidth = 0.5, width = 1) +
   scale_x_continuous(expand = c(0, 0)) +
   scale_y_continuous(expand = expansion(mult = c(0, .02))) +
-  facet_grid(vars(variable), vars(area), scales = "fixed", switch = "y") +
+  #facet_grid(vars(variable), vars(area), scales = "fixed", switch = "y") +
+  facet_grid(vars(variable), vars(area), scales = "free", switch = "y") +
   theme_pbs() +
   scale_fill_manual(values = cols) +
   # expand_limits(y = 0) +
@@ -322,43 +373,44 @@ g <- d |>
         strip.placement = "outside") +
   guides(fill=guide_legend(nrow=2,byrow=TRUE))
 g
-ggsave(fig_path("reconstructed-catch-discards-outside.png"), g, width = 5, height = 5)
+ggsave(fig_path("reconstructed-catch-discards-inside.png"), g, width = 5, height = 5) #changes the axes to free
 
-g1 <- d %>%
-  filter(year <= 2023) |>
-  filter(year >= 1980) |>
-  filter(area != "4B") %>%
-  select(-discarded_pcs) |>
-  ungroup() |>
-  select(year, area, gear, landed_kg, discarded_kg) |>
-  reshape2::melt(id.vars = c("year", "gear", "area")) %>%
-  mutate(variable = ifelse(variable == "landed_kg", tr("Landings (kt)", "Débarquements (kt)"), tr("Discards (kt)", "Rejets (kt)")),
-    value = value/1e6) %>%
-  mutate(variable = factor(variable, levels = c(tr("Landings (kt)", "Débarquements (kt)"), tr("Discards (kt)", "Rejets (kt)")))) |>
-  mutate(area = paste0(area, " (zoomed to 1980-2023)")) |>
-  ggplot(aes(year, value, fill = gear)) +
-  geom_col(colour = "grey50", linewidth = 0.5, width = 1) +
-  scale_x_continuous(expand = c(0, 0)) +
-  scale_y_continuous(expand = expansion(mult = c(0, .02))) +
-  facet_grid(vars(variable), vars(area), scales = "fixed", switch = "y") +
-  theme_pbs() +
-  scale_fill_manual(values = cols) +
-  coord_cartesian(xlim = c(1980, 2023)) +
-  # expand_limits(y = 0) +
-  labs(y = NULL, x = tr("Year", "Année"), fill = tr("Gear", "Engin")) +
-  theme(legend.position = "bottom",
-    strip.placement = "outside") +
-  guides(fill=guide_legend(nrow=2,byrow=TRUE))
-g1
-ggsave_optipng(fig_path("reconstructed-catch-discards-outside-zoom.png"), width = 5, height = 5)
-
-gg <- patchwork::wrap_plots(list(g + theme(axis.title.x = element_blank()), g1 + guides(fill = "none") + theme(axis.title.x = element_blank())), widths = c(1.7, 1))
-ggsave_optipng(fig_path("reconstructed-catch-discards-outside-sar.png"), width = 8, height = 5)
+#not sure the zoomed is needed
+# g1 <- d %>%
+#   filter(year <= 2026) |>
+#   filter(year >= 1980) |>
+#   filter(area == "4B") %>%
+#   select(-discarded_pcs) |>
+#   ungroup() |>
+#   select(year, area, gear, landed_kg, discarded_kg) |>
+#   reshape2::melt(id.vars = c("year", "gear", "area")) %>%
+#   mutate(variable = ifelse(variable == "landed_kg", tr("Landings (kt)", "Débarquements (kt)"), tr("Discards (kt)", "Rejets (kt)")),
+#     value = value/1e6) %>%
+#   mutate(variable = factor(variable, levels = c(tr("Landings (kt)", "Débarquements (kt)"), tr("Discards (kt)", "Rejets (kt)")))) |>
+#   mutate(area = paste0(area, " (zoomed to 1980-2023)")) |>
+#   ggplot(aes(year, value, fill = gear)) +
+#   geom_col(colour = "grey50", linewidth = 0.5, width = 1) +
+#   scale_x_continuous(expand = c(0, 0)) +
+#   scale_y_continuous(expand = expansion(mult = c(0, .02))) +
+#   facet_grid(vars(variable), vars(area), scales = "fixed", switch = "y") +
+#   theme_pbs() +
+#   scale_fill_manual(values = cols) +
+#   coord_cartesian(xlim = c(1980, 2023)) +
+#   # expand_limits(y = 0) +
+#   labs(y = NULL, x = tr("Year", "Année"), fill = tr("Gear", "Engin")) +
+#   theme(legend.position = "bottom",
+#     strip.placement = "outside") +
+#   guides(fill=guide_legend(nrow=2,byrow=TRUE))
+# g1
+# ggsave_optipng(fig_path("reconstructed-catch-discards-inside-zoom.png"), width = 5, height = 5)
+#
+# gg <- patchwork::wrap_plots(list(g + theme(axis.title.x = element_blank()), g1 + guides(fill = "none") + theme(axis.title.x = element_blank())), widths = c(1.7, 1))
+# ggsave_optipng(fig_path("reconstructed-catch-discards-inside-sar.png"), width = 8, height = 5)
 
 d %>%
-  filter(year <= 2023) |>
+  filter(year <= 2026) |>
   filter(year >= 1978) |>
-  filter(area != "4B") %>%
+  filter(area == "4B") %>%
   select(-discarded_pcs) |>
   reshape2::melt(id.vars = c("year", "gear", "area")) %>%
   mutate(variable = ifelse(variable == "landed_kg", tr("Landings (kt)", "Débarquements (kt)"), tr("Discards (kt)", "Rejets (kt)")),
@@ -384,13 +436,13 @@ d %>%
   # ) +
   ylab(tr("Catch (kt) (discards + landings)", "Capture (kt) (rejets + débarquements)"))
 source("ss3/99-utils.R")
-ggsave_optipng(fig_path("reconstructed-catch-discards-outside-zoom-high-risk-band.png"), width = 5, height = 4)
+ggsave_optipng(fig_path("reconstructed-catch-discards-inside-zoom-high-risk-band.png"), width = 5, height = 4)
 
 # table to share:
 out <- d |>
   ungroup() |>
-  filter(year <= 2023) |>
-  filter(area != "4B") |>
+  filter(year <= 2026) |>
+  filter(area == "4B") |>
   mutate(gear = ifelse(gear == "Unknown/trawl", "Bottom trawl", gear)) |>
   select(-area) |>
   group_by(year, gear) |>
@@ -401,7 +453,7 @@ out <- d |>
   arrange(gear, year) |>
   mutate(discarded_t_avg_dogfish = ifelse(gear %in% c("Hook and line", "Trap"), discarded_pcs * 3.07/1000, NA))
 
-out |> readr::write_rds("data/generated/catch-dec2024.rds")
+out |> readr::write_rds("data/generated/catch-nov6.rds")
 
 out |>
   filter(year >= 1996) |>
@@ -415,24 +467,8 @@ out |>
   readr::write_excel_csv("figs/dogfish-catch-weight.csv", na = "")
 
 g <- d %>%
-  filter(area != "4B") %>%
-  group_by(year, area) %>%
-  select(-discarded_pcs) |>
-  summarise(p_discard = sum(discarded_kg)/sum(landed_kg + discarded_kg)) %>%
-  ggplot(aes(x = year, y = p_discard)) +
-  facet_wrap(~area, scales = "fixed") +
-  geom_line() +
-  geom_point(shape = 1) +
-  #geom_line(colour = "grey50", linewidth = 0.5) +
-  #coord_cartesian(expand = FALSE) +
-  theme_pbs() +
-  labs(x = tr("Year", "Année"), y = tr("Proportion discards", "Proportion de rejets")) +
-  geom_vline(xintercept = 1996, linetype = 2)
-ggsave(fig_path("proportion-discards-outside.png"), g, width = 4, height = 2.5)
-
-g <- d %>%
-  filter(area != "4B") %>%
-  filter(gear != "Trap") %>%
+  filter(area == "4B") %>%
+  #filter(gear != "Trap") %>%
   group_by(year, area, gear) %>%
   summarise(p_discard = sum(discarded_kg)/sum(landed_kg + discarded_kg)) %>%
   ggplot(aes(x = year, y = p_discard)) +
@@ -444,40 +480,40 @@ g <- d %>%
   theme_pbs() +
   labs(x = tr("Year", "Année"), y = tr("Proportion discards", "Proportion de rejets")) +
   geom_vline(xintercept = 1996, linetype = 2)
-ggsave(fig_path("proportion-discards-outside-gear.png"), g, width = 6, height = 4)
+ggsave(fig_path("proportion-discards-inside.png"), g, width = 6, height = 4)
 
 
 # ## Inside only ----
-# g <- d %>%
-#   filter(area == "4B") %>%
-#   reshape2::melt(id.vars = c("year", "gear", "species_common_name", "area")) %>%
-#   mutate(variable = ifelse(variable == "landed_kg", "Landings (kt)", "Discards (kt)"),
-#          value = value/1e6) %>%
-#   ggplot(aes(year, value, fill = gear)) +
-#   geom_col(colour = "grey50", linewidth = 0.5, width = 1) +
-#   #coord_cartesian(expand = FALSE) +
-#   facet_grid(vars(variable), vars(area), scales = "free_y", switch = "y") +
-#   theme_pbs() +
-#   scale_fill_manual(values = cols) +
-#   expand_limits(y = 0) +
-#   labs(y = NULL, x = "Year", fill = "Gear") +
-#   theme(legend.position = "bottom",
-#         strip.placement = "outside")
-# ggsave("figs/reconstructed-catch-discards-inside.png", g, width = 6, height = 6)
+g <- d %>%
+  filter(area == "4B") %>%
+  reshape2::melt(id.vars = c("year", "gear", "area")) %>%
+  mutate(variable = ifelse(variable == "landed_kg", "Landings (kt)", "Discards (kt)"),
+         value = value/1e6) %>%
+  ggplot(aes(year, value, fill = gear)) +
+  geom_col(colour = "grey50", linewidth = 0.5, width = 1) +
+  #coord_cartesian(expand = FALSE) +
+  facet_grid(vars(variable), vars(area), scales = "free_y", switch = "y") +
+  theme_pbs() +
+  scale_fill_manual(values = cols) +
+  expand_limits(y = 0) +
+  labs(y = NULL, x = "Year", fill = "Gear") +
+  theme(legend.position = "bottom",
+        strip.placement = "outside")
+ggsave("figs/reconstructed-catch-discards-inside.png", g, width = 6, height = 6)
 
-# g <- d %>%
-#   filter(area == "4B") %>%
-#   group_by(year, area) %>%
-#   summarise(p_discard = sum(discarded_kg)/sum(landed_kg + discarded_kg)) %>%
-#   ggplot(aes(x = year, y = p_discard)) +
-#   facet_wrap(~area, scales = "fixed") +
-#   geom_line() +
-#   geom_point(shape = 1) +
-#   #geom_line(colour = "grey50", linewidth = 0.5) +
-#   #coord_cartesian(expand = FALSE) +
-#   theme_pbs() +
-#   labs(x = "Year", y = "Proportion discards") +
-#   geom_vline(xintercept = 1996, linetype = 2)
-# ggsave("figs/proportion-discards-inside.png", g, width = 4, height = 2.5)
+g <- d %>%
+  filter(area == "4B") %>%
+  group_by(year, area) %>%
+  summarise(p_discard = sum(discarded_kg)/sum(landed_kg + discarded_kg)) %>%
+  ggplot(aes(x = year, y = p_discard)) +
+  facet_wrap(~area, scales = "fixed") +
+  geom_line() +
+  geom_point(shape = 1) +
+  #geom_line(colour = "grey50", linewidth = 0.5) +
+  #coord_cartesian(expand = FALSE) +
+  theme_pbs() +
+  labs(x = "Year", y = "Proportion discards") +
+  geom_vline(xintercept = 1996, linetype = 2)
+ggsave("figs/proportion-discards-inside.png", g, width = 4, height = 2.5)
 
 if (FRENCH) options(OutDec = ".")
