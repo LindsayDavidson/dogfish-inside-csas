@@ -4,31 +4,23 @@ library(tidyverse)
 
 sp <- c("north pacific spiny dogfish")
 
+# commercial samples
 commercial_samples <- get_commercial_samples(
   sp,
   unsorted_only = FALSE,
   return_all_lengths = FALSE
 )
-
 # privacy (and extra) removals:
 commercial_samples$vessel_id <- NULL
 commercial_samples$dna_sample_type <- NULL
 commercial_samples$dna_container_id <- NULL
 saveRDS(commercial_samples, "data/raw/dogfish-inside-commercial-samples.rds")
 
+# commercial catch
 catch <- get_catch(sp)
 saveRDS(catch, "data/raw/dogfish-inside-catch-2026-11-06.rds")
 
-# get commercial samples
-comm_samples <- gfdata::get_commercial_samples(
-  species = sp
-  # years = year_range,
-  # tidy = TRUE
-)
-glimpse(comm_samples)
-saveRDS(comm_samples, "data/raw/samples_comm_trawl_inside_dogfish.rds")
-
-
+# cpue longline index
 ll <- gfdata::get_cpue_index(gear = "longline")
 ll <- ll |>
   mutate(best_date2 = as.Date(best_date, format = "%Y/%m/%d hh:mm:ss")) |>
@@ -40,9 +32,10 @@ numevents <- ll |>
 
 ll <- ll |> mutate(total.num.trips = numevents)
 
-saveRDS(ll, "data/raw/data_longline_trawl_inside_dogfish.rds") # this saves encounters but not all fishing events?
-ll <- readRDS("data/raw/data_longline_trawl_inside_dogfish.rds")
+saveRDS(ll, "data/raw/data_longline_inside_dogfish.rds") # this saves encounters but not all fishing events?
+# ll <- readRDS("data/raw/data_longline_inside_dogfish.rds")
 
+# trawl cpue index
 df <- gfdata::get_cpue_index(gear = "bottom trawl")
 saveRDS(df, "data/raw/data_commercial_bottom_trawl")
 unique(df$species_common_name)
